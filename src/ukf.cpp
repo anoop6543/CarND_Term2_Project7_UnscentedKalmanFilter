@@ -285,24 +285,16 @@ void UKF::Prediction(double delta_t)
 
   // Code for Predicted Sigma Points ends Here
 
-  //Code for Prediction of State mean and Covariance starts here
+  //Code for Prediction of State mean and Covariance begins
 
   //predicted state mean
   x_.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   { //iterate over sigma points
     x_ = x_ + weights_(i) * Xsig_pred_.col(i);
-    //std::cout << "Value of x_ for loop "<< i <<" is:" << std::endl << x_ << std::endl;
-    //std::cout << "Values for loop "<< i << std::endl;
-    //std::cout << "x_"<< x_ << std::endl;
-    //std::cout << "weights_(i) "<< weights_(i) << std::endl;
-    //std::cout << "Xsig_pred_.col(i) "<< Xsig_pred_.col(i) << std::endl;
-    //std::cout << "weights_(i) * Xsig_pred_.col(i)"<< weights_(i) * Xsig_pred_.col(i) << std::endl;
   }
 
-  //std::cout << "Value of x_ is: " << std::endl << x_ << std::endl;
-
-  //predicted state covariance matrix
+  //This is the calculated Prediction state covariance matrix
   P_.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   { //iterate over sigma points
@@ -318,7 +310,7 @@ void UKF::Prediction(double delta_t)
     P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
   }
 
-  /********      Code for Prediction of State mean and Covariance ends here	     *************/
+  // Prediction of State mean and Covariance matrix Done
 }
 
 /**
@@ -343,7 +335,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   VectorXd z = meas_package.raw_measurements_;
 
   //create matrix for sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+  MatrixXd Zsigma = MatrixXd(n_z, 2 * n_aug_ + 1);
 
   //mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
@@ -360,21 +352,21 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
     double p_y = Xsig_pred_(1, i);
 
     // measurement model
-    Zsig(0, i) = p_x; //px
-    Zsig(1, i) = p_y; //py
+    Zsigma(0, i) = p_x; //px
+    Zsigma(1, i) = p_y; //py
   }
 
   z_pred.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   {
-    z_pred = z_pred + weights_(i) * Zsig.col(i);
+    z_pred = z_pred + weights_(i) * Zsigma.col(i);
   }
 
   S.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   { //2n+1 sigma points
     //residual
-    VectorXd z_diff = Zsig.col(i) - z_pred;
+    VectorXd z_diff = Zsigma.col(i) - z_pred;
 
     //angle normalization
     while (z_diff(1) > M_PI)
@@ -392,31 +384,26 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
 
   S = S + R;
 
-  //create matrix for cross correlation Tc
-  MatrixXd Tc = MatrixXd(n_x_, n_z);
+  //create matrix for cross correlation Cc
+  MatrixXd Cc = MatrixXd(n_x_, n_z);
 
   //calculate cross correlation matrix
-  Tc.fill(0.0);
+  Cc.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   { //2n+1 sigma points
 
     //residual
-    VectorXd z_diff = Zsig.col(i) - z_pred;
+    VectorXd z_diff = Zsigma.col(i) - z_pred;
 
     // state difference
     VectorXd x_diff = Xsig_pred_.col(i) - x_;
 
-    Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
-    //std::cout << "Loop: " << std::endl << i << std::endl;
-    //std::cout << "x_diff: " << std::endl << x_diff << std::endl;
-    //std::cout << "z_diff: " << std::endl << z_diff << std::endl;
-    //std::cout << "z_diff transpose: " << std::endl << z_diff.transpose() << std::endl;
+    Cc = Cc + weights_(i) * x_diff * z_diff.transpose();
   }
 
-  //std::cout << "Cross-correlation Matrix: " << std::endl << Tc << std::endl;
 
   //Kalman gain K;
-  MatrixXd K = Tc * S.inverse();
+  MatrixXd K = Cc * S.inverse();
 
   //residual
   VectorXd z_diff = z - z_pred;
@@ -450,7 +437,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   VectorXd z = meas_package.raw_measurements_;
 
   //create matrix for sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+  MatrixXd Zsigma = MatrixXd(n_z, 2 * n_aug_ + 1);
 
   //mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
@@ -472,22 +459,22 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
     double v2 = sin(yaw) * v;
 
     // measurement model
-    Zsig(0, i) = sqrt(p_x * p_x + p_y * p_y);                         //r
-    Zsig(1, i) = atan2(p_y, p_x);                                     //phi
-    Zsig(2, i) = (p_x * v1 + p_y * v2) / sqrt(p_x * p_x + p_y * p_y); //r_dot
+    Zsigma(0, i) = sqrt(p_x * p_x + p_y * p_y);                         //r
+    Zsigma(1, i) = atan2(p_y, p_x);                                     //phi
+    Zsigma(2, i) = (p_x * v1 + p_y * v2) / sqrt(p_x * p_x + p_y * p_y); //r_dot
   }
 
   z_pred.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   {
-    z_pred = z_pred + weights_(i) * Zsig.col(i);
+    z_pred = z_pred + weights_(i) * Zsigma.col(i);
   }
 
   S.fill(0.0);
   for (int i = 0; i < 2 * n_aug_ + 1; i++)
   { //2n+1 sigma points
     //residual
-    VectorXd z_diff = Zsig.col(i) - z_pred;
+    VectorXd z_diff = Zsigma.col(i) - z_pred;
 
     //angle normalization
     while (z_diff(1) > M_PI)
@@ -514,7 +501,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   { //2n+1 sigma points
 
     //residual
-    VectorXd z_diff = Zsig.col(i) - z_pred;
+    VectorXd z_diff = Zsigma.col(i) - z_pred;
     //angle normalization
     while (z_diff(1) > M_PI)
       z_diff(1) -= 2. * M_PI;
@@ -530,13 +517,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
       x_diff(3) += 2. * M_PI;
 
     Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
-    //std::cout << "Loop: " << std::endl << i << std::endl;
-    //std::cout << "x_diff: " << std::endl << x_diff << std::endl;
-    //std::cout << "z_diff: " << std::endl << z_diff << std::endl;
-    //std::cout << "z_diff transpose: " << std::endl << z_diff.transpose() << std::endl;
   }
-
-  //std::cout << "Cross-correlation Matrix: " << std::endl << Tc << std::endl;
 
   //Kalman gain K;
   MatrixXd K = Tc * S.inverse();
@@ -554,5 +535,4 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   x_ = x_ + K * z_diff;
   P_ = P_ - K * S * K.transpose();
   NIS_radar_ = z_diff.transpose() * S.inverse() * z_diff;
-  //std::cout << "NIS_radar_: " << std::endl << NIS_radar_ << std::endl;
 }
