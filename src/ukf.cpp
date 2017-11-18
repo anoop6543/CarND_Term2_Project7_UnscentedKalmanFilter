@@ -12,7 +12,7 @@ using std::vector;
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+  use_laser_ = false;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -31,10 +31,10 @@ UKF::UKF() {
 
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;//3
+  std_a_ = 3;//30,3,0.3
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;//0.3
+  std_yawdd_ = 0.3;//30,3,0.3
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
