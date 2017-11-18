@@ -12,7 +12,7 @@ using std::vector;
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -56,23 +56,27 @@ UKF::UKF() {
 
   n_aug_ = 7;
 
+  n_sig_ = 2 * n_aug_ + 1;
+
   // Sigma point spreading parameter
   lambda_ = 3 - n_aug_;
 
   // predicted sigma points matrix
-  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  Xsig_pred_ = MatrixXd(n_x_, n_sig_);
 
   // Weights of sigma points
-  weights_ = VectorXd(2 * n_aug_ + 1);
+  weights_ = VectorXd(n_sig_);
 
   // set weights
   double weight_0 = lambda_ / (lambda_ + n_aug_);
   weights_(0) = weight_0;
-  for (int i = 1; i < 2 * n_aug_ + 1; i++)
-  { //2n+1 weights
-    double weight = 0.5 / (n_aug_ + lambda_);
-    weights_(i) = weight;
+   for (int i = 1; i < n_sig_; i++)
+   { //2n+1 weights
+     double weight = 0.5 / (n_aug_ + lambda_);
+     weights_(i) = weight;
   }
+  // weights_.fill(0.5 / (lambda_ + n_aug_));
+  // weights_(0) = lambda_ / (lambda_ + n_aug_);
 
   //NIS for Radar
   NIS_radar_;
@@ -200,7 +204,7 @@ void UKF::Prediction(double delta_t)
   MatrixXd P_aug = MatrixXd(7, 7);
 
   //create sigma point matrix
-  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, n_sig_);
 
   //create augmented mean state
   x_aug.head(5) = x_;
@@ -235,7 +239,7 @@ void UKF::Prediction(double delta_t)
   //Code for Predicted Sigma Points starts here  *************/
 
   //Predict sigma points
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   {
     //Extract values for better readability
     double p_x = Xsig_aug(0, i);
@@ -289,14 +293,14 @@ void UKF::Prediction(double delta_t)
 
   //predicted state mean
   x_.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //iterate over sigma points
     x_ = x_ + weights_(i) * Xsig_pred_.col(i);
   }
 
   //This is the calculated Prediction state covariance matrix
   P_.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //iterate over sigma points
 
     // state difference
@@ -335,7 +339,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   VectorXd z = meas_package.raw_measurements_;
 
   //create matrix for sigma points in measurement space
-  MatrixXd Zsigma = MatrixXd(n_z, 2 * n_aug_ + 1);
+  MatrixXd Zsigma = MatrixXd(n_z, n_sig_);
 
   //mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
@@ -344,7 +348,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   MatrixXd S = MatrixXd(n_z, n_z);
 
   //transform sigma points into measurement space
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
 
     // extract values for better readibility
@@ -357,13 +361,13 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   }
 
   z_pred.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   {
     z_pred = z_pred + weights_(i) * Zsigma.col(i);
   }
 
   S.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
     //residual
     VectorXd z_diff = Zsigma.col(i) - z_pred;
@@ -389,7 +393,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
 
   //calculate cross correlation matrix
   Cc.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
 
     //residual
@@ -437,7 +441,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   VectorXd z = meas_package.raw_measurements_;
 
   //create matrix for sigma points in measurement space
-  MatrixXd Zsigma = MatrixXd(n_z, 2 * n_aug_ + 1);
+  MatrixXd Zsigma = MatrixXd(n_z, n_sig_);
 
   //mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
@@ -446,7 +450,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   MatrixXd S = MatrixXd(n_z, n_z);
 
   //transform sigma points into measurement space
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
 
     // extract values for better readibility
@@ -465,13 +469,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   }
 
   z_pred.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   {
     z_pred = z_pred + weights_(i) * Zsigma.col(i);
   }
 
   S.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
     //residual
     VectorXd z_diff = Zsigma.col(i) - z_pred;
@@ -497,7 +501,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
 
   //calculate cross correlation matrix
   Tc.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for (int i = 0; i < n_sig_; i++)
   { //2n+1 sigma points
 
     //residual
